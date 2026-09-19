@@ -10,7 +10,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Unpack the project zip
-        run: unzip -q ./*.zip -d project
+        run: |
+          echo "Files in the repo:"
+          ls -la
+          unzip -q "$(ls *.zip | head -n 1)" -d project
+          echo "What is inside the zip:"
+          find project -maxdepth 4 | sort | head -60
+          BUILD_FILE=$(find project -name build.gradle | head -n 1)
+          if [ -z "$BUILD_FILE" ]; then
+            echo "ERROR: build.gradle was not found inside the zip"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$BUILD_FILE")" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v4
         with:
@@ -18,7 +29,7 @@ jobs:
           java-version: 21
 
       - name: Run core tests
-        working-directory: project
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           mkdir -p build/coretests
           javac --release 17 -d build/coretests src/main/java/mcbench/core/*.java tests/java/mcbench/core/*.java
@@ -31,10 +42,10 @@ jobs:
           gradle-version: 9.2.1
 
       - name: Build
-        working-directory: project
+        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle build
 
       - uses: actions/upload-artifact@v4
         with:
           name: mcbench-jar
-          path: project/build/libs/*.jar
+          path: ${{ env.PROJECT_DIR }}/build/libs/*.jar
