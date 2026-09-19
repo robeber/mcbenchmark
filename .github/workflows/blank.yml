@@ -1,0 +1,40 @@
+name: build
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack the project zip
+        run: unzip -q ./*.zip -d project
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Run core tests
+        working-directory: project
+        run: |
+          mkdir -p build/coretests
+          javac --release 17 -d build/coretests src/main/java/mcbench/core/*.java tests/java/mcbench/core/*.java
+          java -cp build/coretests mcbench.core.CoreTests
+          java -cp build/coretests mcbench.core.SessionTests
+          java -cp build/coretests mcbench.core.ExtraTests
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.2.1
+
+      - name: Build
+        working-directory: project
+        run: gradle build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcbench-jar
+          path: project/build/libs/*.jar
